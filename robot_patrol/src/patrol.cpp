@@ -11,44 +11,89 @@ public:
     subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
       "/scan", 10, std::bind(&Patrol::scanCallback, this, std::placeholders::_1));
     publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&RobotPatrol::controlLoop, this));
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Patrol::controlLoop, this));
   }
 
 private:
   void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
-  {
-    int num_rays = msg->ranges.size();
-
-    int start_index = num_rays / 4;
-    int end_index = num_rays * 3 / 4;
-
-    float largest_distance = 0.0;
-    float angle = 0.0;
-
-    for (int i = start_index; i < end_index; i++)
     {
-      float distance = msg->ranges[i];
+        float maxRange = 0.0;
+        int maxRangeIndex = -1;
 
-      if (std::isfinite(distance) && distance > largest_distance)
-      {
-        largest_distance = distance;
-        angle = msg->angle_min + i * msg->angle_increment;
-      }
+        int leftIndex = (int)(M_PI_2 / msg->angle_increment);
+
+        int rightIndex = (int)((3 * M_PI_2) / msg->angle_increment);
+
+        for (int i = 0; i <= leftIndex; ++i)
+        {
+            float range = msg->ranges[i];
+            if (std::isfinite(range))
+            {
+                int leftNeighbor = std::max(0, i - 5);
+                int rightNeighbor = std::min(i + 5, leftIndex);
+                float minNeighborRange = std::numeric_limits<float>::infinity();
+                for (int j = leftNeighbor; j <= rightNeighbor; ++j)
+                {
+                    if (std::isfinite(msg->ranges[j]) && msg->ranges[j] < minNeighborRange)
+                    {
+                        minNeighborRange = msg->ranges[j];
+                    }
+                }
+                if (minNeighborRange > maxRange)
+                {
+                    maxRange = minNeighborRange;
+                    maxRangeIndex = i;
+                }
+            }
+        }
+
+        for (int i = rightIndex; i < msg->ranges.size(); ++i)
+        {
+            float range = msg->ranges[i];
+            if (std::isfinite(range))
+            {
+                int leftNeighbor = std::max(rightIndex, i - 5);
+                int rightNeighbor = std::min(i + 5, (int)msg->ranges.size() - 1);
+                float minNeighborRange = std::numeric_limits<float>::infinity();
+                for (int j = leftNeighbor; j <= rightNeighbor; ++j)
+                {
+                    if (std::isfinite(msg->ranges[j]) && msg->ranges[j] < minNeighborRange)
+                    {
+                        minNeighborRange = msg->ranges[j];
+                    }
+                }
+                if (minNeighborRange > maxRange)
+                {
+                    maxRange = minNeighborRange;
+                    maxRangeIndex = i;
+                }
+            }
+        }
+
+        if (maxRangeIndex >= 0)
+        {
+            float angle = msg->angle_min + maxRangeIndex * msg->angle_increment;
+
+            if (angle > M_PI)
+            {
+                angle -= 2 * M_PI;
+            }
+
+            std::cout << "Angle of the safest direction: " << angle << " radians" << std::endl;
+            std::cout << "Distance of the safest direction: " << maxRange << " meters" << std::endl;
+
+            direction_ = angle;
+        }
     }
 
-    direction_ = angle;
-
-    RCLCPP_INFO(this->get_logger(), "Largest distance: %.2f, Angle: %.2f", largest_distance, direction_);
-  }
-
   void controlLoop()
-  {
-    geometry_msgs::msg::Twist velocity_msg;
-    velocity_msg.linear.x = 0.1;  
-    velocity_msg.angular.z = direction_ / 2;  
+    {
+        geometry_msgs::msg::Twist velocity_msg;
+        velocity_msg.linear.x = 0.1;  
+        velocity_msg.angular.z = direction_ / 2;  
 
-    publisher_->publish(velocity_msg);
-  }
+        publisher_->publish(velocity_msg);
+    }
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
