@@ -14,16 +14,33 @@ public:
 
 private:
     void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+        // simulation
         float frontRange = msg->ranges[0];
+
+        // real robot
+        // float frontRange = msg->ranges[msg->ranges.size() / 2];
+
+        //simulation
         float threshold = 1.0;  
+
+        //real robot
+        // float threshold = 0.6;
+
+        RCLCPP_INFO(this->get_logger(), "Front: %f", frontRange);
 
         if (std::isfinite(frontRange) && frontRange > threshold) {
             direction_ = 0.0;  
         } else {
             float maxRange = 0.0;
             int maxRangeIndex = -1;
+
+            // simulation
             int leftIndex = (int)(M_PI_2 / msg->angle_increment);
             int rightIndex = (int)((3 * M_PI_2) / msg->angle_increment);
+
+            // real robot
+            // int leftIndex = msg->ranges.size() / 4;
+            // int rightIndex = msg->ranges.size() * 3 / 4;
 
             for (int i = 0; i <= leftIndex; ++i) {
                 float range = msg->ranges[i];
