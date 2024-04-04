@@ -24,8 +24,8 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(robot_patrol_node src/patrol.cpp)
-ament_target_dependencies(robot_patrol_node rclcpp sensor_msgs geometry_msgs robot_patrol_msg)
+add_executable(patrol_with_service src/patrol_with_service.cpp)
+ament_target_dependencies(patrol_with_service rclcpp sensor_msgs geometry_msgs robot_patrol_msg)
 
 add_executable(direction_service src/direction_service.cpp)
 ament_target_dependencies(direction_service rclcpp geometry_msgs sensor_msgs robot_patrol_msg)
@@ -34,7 +34,7 @@ add_executable(test_service src/test_service.cpp)
 ament_target_dependencies(test_service rclcpp sensor_msgs robot_patrol_msg)
 
 install(TARGETS
-   robot_patrol_node
+   patrol_with_service
    direction_service
    test_service
    DESTINATION lib/${PROJECT_NAME}

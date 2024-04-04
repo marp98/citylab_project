@@ -26,11 +26,15 @@ private:
     geometry_msgs::msg::Twist twist_msg;
 
     void direction_callback(const std::shared_ptr<GetDirection::Request> request, const std::shared_ptr<GetDirection::Response> response)
-    {
+    {   
         RCLCPP_INFO(this->get_logger(), "Received direction request");
+
         const auto& laser_data = request->laser_data;
         const int num_readings = laser_data.ranges.size();
         const double angle_increment = laser_data.angle_increment;
+
+        float frontRange = laser_data.ranges[0];
+        float threshold = 0.9;
 
         RCLCPP_INFO(this->get_logger(), "Number of laser readings: %d", num_readings);
         RCLCPP_INFO(this->get_logger(), "Angle increment: %f", angle_increment);
@@ -70,7 +74,9 @@ private:
         RCLCPP_INFO(this->get_logger(), "Front sum: %f", front_sum);
         RCLCPP_INFO(this->get_logger(), "Right sum: %f", right_sum);
 
-        if (left_sum >= front_sum && left_sum >= right_sum) {
+        if (std::isfinite(frontRange) && frontRange > threshold) {
+            response->direction = "forward";  
+        } else if (left_sum >= front_sum && left_sum >= right_sum) {
             response->direction = "left";
         } else if (front_sum >= left_sum && front_sum >= right_sum) {
             response->direction = "forward";
