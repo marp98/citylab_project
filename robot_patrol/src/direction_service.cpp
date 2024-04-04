@@ -33,12 +33,18 @@ private:
         const int num_readings = laser_data.ranges.size();
         const double angle_increment = laser_data.angle_increment;
 
+        // simulation
         float frontRange = laser_data.ranges[0];
         float threshold = 0.9;
+
+        // real robot
+        // float frontRange = laser_data.ranges[laser_data.ranges.size() / 2];
+        // float threshold = 0.9;
 
         RCLCPP_INFO(this->get_logger(), "Number of laser readings: %d", num_readings);
         RCLCPP_INFO(this->get_logger(), "Angle increment: %f", angle_increment);
 
+        // simulation
         const double left_start_angle = M_PI / 6;    // 30 degrees
         const double left_end_angle = M_PI / 2;      // 90 degrees
         const double right_start_angle = 3 * M_PI / 2;  // 270 degrees
@@ -55,20 +61,43 @@ private:
 
         for (int i = left_start; i <= left_end; ++i) {
             double range = laser_data.ranges[i];
-            left_sum += (std::isinf(range)) ? 10.0 : range;
+            left_sum += (std::isinf(range)) ? 0.0 : range;
         }
-        for (int i = 0; i <= static_cast<int>(M_PI / 6 / angle_increment); ++i) {
+        for (int i = laser_data.ranges.size() / 2; i <= static_cast<int>(M_PI / 6 / angle_increment); ++i) {
             double range = laser_data.ranges[i];
-            front_sum += (std::isinf(range)) ? 10.0 : range;
+            front_sum += (std::isinf(range)) ? 0.0 : range;
         }
         for (int i = right_end; i < num_readings; ++i) {
             double range = laser_data.ranges[i];
-            front_sum += (std::isinf(range)) ? 10.0 : range;
+            front_sum += (std::isinf(range)) ? 0.0 : range;
         }
         for (int i = right_start; i <= right_end; ++i) {
             double range = laser_data.ranges[i];
-            right_sum += (std::isinf(range)) ? 10.0 : range;
+            right_sum += (std::isinf(range)) ? 0.0 : range;
         }
+
+       // Real Robot
+        // int rightStartIndex = laser_data.ranges.size() / 4;
+        // int rightEndIndex = laser_data.ranges.size() * 5 / 12;
+        // int frontStartIndex = laser_data.ranges.size() * 5 / 12;
+        // int frontEndIndex = laser_data.ranges.size() * 7 / 12;
+        // int leftStartIndex = laser_data.ranges.size() * 7 / 12;
+        // int leftEndIndex = laser_data.ranges.size() * 3 / 4;
+
+        // for (int i = leftStartIndex; i <= leftEndIndex; ++i) {
+        //     double range = laser_data.ranges[i];
+        //     left_sum += (std::isinf(range) || range > 10.0) ? 0.0 : range;
+        // }
+
+        // for (int i = frontStartIndex; i <= frontEndIndex; ++i) {
+        //     double range = laser_data.ranges[i];
+        //     front_sum += (std::isinf(range) || range > 10.0) ? 0.0 : range;
+        // }
+
+        // for (int i = rightStartIndex; i <= rightEndIndex; ++i) {
+        //     double range = laser_data.ranges[i];
+        //     right_sum += (std::isinf(range) || range > 10.0) ? 0.0 : range;
+        // }
 
         RCLCPP_INFO(this->get_logger(), "Left sum: %f", left_sum);
         RCLCPP_INFO(this->get_logger(), "Front sum: %f", front_sum);
