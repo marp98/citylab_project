@@ -118,13 +118,8 @@ private:
             if (distance < 0.1) {
                 cmd_vel.linear.x = 0.0;
                 cmd_vel.angular.z = 0.0;
-
                 cmd_vel_publisher_->publish(cmd_vel);
-
-                result->status = true;
-                goal_handle->succeed(result);
-                RCLCPP_INFO(this->get_logger(), "Goal succeeded");
-                return;
+                break;
             }
 
             double direction_x = dx / distance;
@@ -143,6 +138,34 @@ private:
 
             loop_rate.sleep();
         }
+
+        while (rclcpp::ok()) {
+            current_pos = current_pos_;
+
+            double orientation_error = desired_pos_.theta - current_pos.theta;
+            orientation_error = std::fmod(orientation_error + M_PI, 2 * M_PI) - M_PI;
+
+            if (std::abs(orientation_error) < 0.1) {
+                cmd_vel.linear.x = 0.0;
+                cmd_vel.angular.z = 0.0;
+                cmd_vel_publisher_->publish(cmd_vel);
+                break;
+            }
+
+            cmd_vel.linear.x = 0.0;
+            cmd_vel.angular.z = 0.5 * orientation_error;
+
+            cmd_vel_publisher_->publish(cmd_vel);
+
+            goal_handle->publish_feedback(feedback);
+            RCLCPP_INFO(this->get_logger(), "Publish feedback");
+
+            loop_rate.sleep();
+        }
+
+        result->status = true;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Goal succeeded");
     }
 };
 
