@@ -35,7 +35,7 @@ private:
 
         // simulation
         float frontRange = laser_data.ranges[0];
-        float threshold = 0.9;
+        float threshold = 0.8;
 
         // real robot
         // float frontRange = laser_data.ranges[laser_data.ranges.size() / 2];
