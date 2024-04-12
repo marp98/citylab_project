@@ -3,108 +3,87 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <cmath>
 
-class Patrol : public rclcpp::Node
-{
+class Patrol : public rclcpp::Node {
 public:
-  Patrol() : Node("robot_patrol_node")
-  {
-    subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-      "/scan", 10, std::bind(&Patrol::scanCallback, this, std::placeholders::_1));
-    publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Patrol::controlLoop, this));
-  }
+    Patrol() : Node("robot_patrol_node") {
+        subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
+            "/scan", 10, std::bind(&Patrol::scanCallback, this, std::placeholders::_1));
+        publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+        timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Patrol::controlLoop, this));
+    }
 
 private:
-  void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
-    {
-        float maxRange = 0.0;
-        int maxRangeIndex = -1;
+    void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+        // simulation
+        float frontRange = msg->ranges[0];
 
-        int leftIndex = (int)(M_PI_2 / msg->angle_increment);
+        // real robot
+        // float frontRange = msg->ranges[msg->ranges.size() / 2];
 
-        int rightIndex = (int)((3 * M_PI_2) / msg->angle_increment);
+        //simulation
+        float threshold = 1.0;  
 
-        for (int i = 0; i <= leftIndex; ++i)
-        {
-            float range = msg->ranges[i];
-            if (std::isfinite(range))
-            {
-                int leftNeighbor = std::max(0, i - 5);
-                int rightNeighbor = std::min(i + 5, leftIndex);
-                float minNeighborRange = std::numeric_limits<float>::infinity();
-                for (int j = leftNeighbor; j <= rightNeighbor; ++j)
-                {
-                    if (std::isfinite(msg->ranges[j]) && msg->ranges[j] < minNeighborRange)
-                    {
-                        minNeighborRange = msg->ranges[j];
-                    }
-                }
-                if (minNeighborRange > maxRange)
-                {
-                    maxRange = minNeighborRange;
+        //real robot
+        // float threshold = 0.6;
+
+        RCLCPP_INFO(this->get_logger(), "Front: %f", frontRange);
+
+        if (std::isfinite(frontRange) && frontRange > threshold) {
+            direction_ = 0.0;  
+        } else {
+            float maxRange = 0.0;
+            int maxRangeIndex = -1;
+
+            // simulation
+            int leftIndex = (int)(M_PI_2 / msg->angle_increment);
+            int rightIndex = (int)((3 * M_PI_2) / msg->angle_increment);
+
+            // real robot
+            // int leftIndex = msg->ranges.size() / 4;
+            // int rightIndex = msg->ranges.size() * 3 / 4;
+
+            for (int i = 0; i <= leftIndex; ++i) {
+                float range = msg->ranges[i];
+                if (std::isfinite(range) && range > maxRange) {
+                    maxRange = range;
                     maxRangeIndex = i;
                 }
             }
-        }
 
-        for (int i = rightIndex; i < msg->ranges.size(); ++i)
-        {
-            float range = msg->ranges[i];
-            if (std::isfinite(range))
-            {
-                int leftNeighbor = std::max(rightIndex, i - 5);
-                int rightNeighbor = std::min(i + 5, (int)msg->ranges.size() - 1);
-                float minNeighborRange = std::numeric_limits<float>::infinity();
-                for (int j = leftNeighbor; j <= rightNeighbor; ++j)
-                {
-                    if (std::isfinite(msg->ranges[j]) && msg->ranges[j] < minNeighborRange)
-                    {
-                        minNeighborRange = msg->ranges[j];
-                    }
-                }
-                if (minNeighborRange > maxRange)
-                {
-                    maxRange = minNeighborRange;
+            for (int i = rightIndex; i < msg->ranges.size(); ++i) {
+                float range = msg->ranges[i];
+                if (std::isfinite(range) && range > maxRange) {
+                    maxRange = range;
                     maxRangeIndex = i;
                 }
             }
-        }
 
-        if (maxRangeIndex >= 0)
-        {
-            float angle = msg->angle_min + maxRangeIndex * msg->angle_increment;
-
-            if (angle > M_PI)
-            {
-                angle -= 2 * M_PI;
+            if (maxRangeIndex >= 0) {
+                float angle = msg->angle_min + maxRangeIndex * msg->angle_increment;
+                if (angle > M_PI) {
+                    angle -= 2 * M_PI;
+                }
+                direction_ = angle;
             }
-
-            std::cout << "Angle of the safest direction: " << angle << " radians" << std::endl;
-            std::cout << "Distance of the safest direction: " << maxRange << " meters" << std::endl;
-
-            direction_ = angle;
         }
     }
 
-  void controlLoop()
-    {
+    void controlLoop() {
         geometry_msgs::msg::Twist velocity_msg;
-        velocity_msg.linear.x = 0.1;  
-        velocity_msg.angular.z = direction_ / 2;  
-
+        velocity_msg.linear.x = 0.1;
+        velocity_msg.angular.z = direction_ / 2;
         publisher_->publish(velocity_msg);
     }
 
-  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr subscription_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
-  rclcpp::TimerBase::SharedPtr timer_;
-  float direction_;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr subscription_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    float direction_;
 };
 
-int main(int argc, char * argv[])
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Patrol>());
-  rclcpp::shutdown();
-  return 0;
+int main(int argc, char * argv[]) {
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<Patrol>());
+    rclcpp::shutdown();
+    return 0;
 }
